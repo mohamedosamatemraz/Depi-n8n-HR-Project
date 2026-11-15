@@ -1,6 +1,6 @@
-# OMNA People -- HR Automation
+# Eng. Mohamed Osama HR Automation Project
 
-OMNA People is an HR automation project built with n8n to support
+This Project is an HR automation project built with n8n to support
 recruitment workflows, application screening, and candidate assistance.
 It also includes an HR policy knowledge base that can answer questions
 using the provided policy documents.
