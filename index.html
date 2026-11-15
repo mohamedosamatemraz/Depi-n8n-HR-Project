@@ -1,0 +1,83 @@
+
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>OMNA People</title>
+<style>
+  body { font-family: system-ui, sans-serif; max-width: 860px; margin: 0 auto; padding: 24px 16px; }
+  .badge { display: inline-block; padding: 4px 10px; border-radius: 999px; background: #eee; }
+  .badge.on { background: #d7f5e3; } .badge.off { background: #fde2e2; }
+  #msgs { border: 1px solid #ddd; border-radius: 12px; padding: 12px; min-height: 160px; }
+  .me { text-align: right; margin: 6px 0; } .bot { margin: 6px 0; white-space: pre-wrap; }
+  a.disabled { pointer-events: none; opacity: .5; }
+</style>
+</head>
+<body>
+<h1>OMNA People</h1>
+<p>Ask HR, get interview coaching, and apply. Built with n8n.</p>
+<span class="badge" id="status">Checking…</span>
+
+<h2>Ask HR</h2>
+<div id="msgs"></div>
+<form id="ask"><input id="q" placeholder="How many leave days do I get?" required> <button>Ask</button></form>
+
+<h2>Apply or get coached</h2>
+<p><a id="applyLink" target="_blank" rel="noopener">Apply for a job</a> · <a id="coachLink" target="_blank" rel="noopener">Get a coaching report</a></p>
+
+<script>
+const CONFIG = {
+    n8nBase: "https://YOUR-DOMAIN.ngrok-free.app",
+    chat: "/webhook/YOUR-CHAT-ID/chat",
+    applyForm: "/form/YOUR-APPLY-FORM-ID",
+    coachForm: "/form/YOUR-COACH-FORM-ID"
+};
+const $ = s => document.querySelector(s);
+const sessionId = crypto.randomUUID();
+const HEADERS = { "Content-Type": "application/json", "ngrok-skip-browser-warning": "1" };
+
+$("#applyLink").href = CONFIG.n8nBase + CONFIG.applyForm;
+$("#coachLink").href = CONFIG.n8nBase + CONFIG.coachForm;
+
+function setStatus(online) {
+  $("#status").textContent = online ? "Online" : "Offline, please try again later";
+  $("#status").className = "badge " + (online ? "on" : "off");
+  document.querySelectorAll("#applyLink, #coachLink").forEach(a =>
+    a.classList.toggle("disabled", !online));
+}
+
+// Any answer from the chat webhook means n8n and ngrok are both running.
+// When either is off, ngrok's error page has no CORS headers, so fetch fails.
+async function checkStatus() {
+  try {
+    await fetch(CONFIG.n8nBase + CONFIG.chat, { method: "POST", headers: HEADERS,
+      body: JSON.stringify({ action: "loadPreviousSession", sessionId }) });
+    setStatus(true);
+  } catch (err) { setStatus(false); }
+}
+checkStatus();
+
+function add(cls, text) {
+  const d = document.createElement("div");
+  d.className = cls; d.textContent = text; $("#msgs").append(d); return d;
+}
+
+$("#ask").onsubmit = async e => {
+  e.preventDefault(); const q = $("#q").value.trim(); $("#q").value = "";
+  add("me", q);
+  const bot = add("bot", "…");
+  try {
+    const r = await fetch(CONFIG.n8nBase + CONFIG.chat, { method: "POST", headers: HEADERS,
+      body: JSON.stringify({ action: "sendMessage", sessionId, chatInput: q }) });
+    if (!r.ok) throw new Error("HTTP " + r.status);
+    bot.textContent = (await r.json()).output;
+    setStatus(true);
+  } catch (err) {
+    bot.textContent = "The HR assistant is offline right now. Please try again later.";
+    setStatus(false);
+  }
+};
+</script>
+</body>
+</html>
